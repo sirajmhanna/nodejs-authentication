@@ -1,2 +1,2 @@
 # nodejs-authentication
- Nodejs + MongoDB -- User Authentication Service
+ Nodejs + MySQL -- User Authentication Service
