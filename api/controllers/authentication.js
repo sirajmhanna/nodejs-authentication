@@ -106,7 +106,7 @@ exports.login = async (req, res) => {
         delete user.previousLockCount;
 
         logger.info(req.body.requestID, 'authentication',
-            'login', 'Calling generateAccessToken() :: Calling generateRefreshToken() :: Calling Promise.all()', {});
+            'login', 'Calling generateAccessToken() :: Calling generateRefreshToken() :: In Promise.all()', {});
         const promises = await Promise.all([
             Token.generateAccessToken(connection, user, req.body.requestID),
             Token.generateRefreshToken(connection, user.ID, req.body.requestID)
