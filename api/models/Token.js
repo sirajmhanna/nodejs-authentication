@@ -2,6 +2,7 @@ const logger = require('../../helpers/winston');
 const jwt = require('jsonwebtoken');
 const crypto = require("crypto-js");
 const datetimeHelpers = require('../../helpers/datetime');
+const jwtHelpers = require('../../helpers/json-web-token');
 
 const Token = {};
 
@@ -18,7 +19,7 @@ Token.generateAccessToken = async (connection, userData, requestID) => {
     try {
         logger.info(requestID, 'Token', 'generateAccessToken', 'Hashing user data :: Calling Promise.all()', { userData });
         const promiseCrypto = await Promise.all([
-            ,
+            crypto.AES.encrypt(userData.ID.toString(), process.env.ACCESS_TOKEN_CRYPTO_ID).toString(),
             crypto.AES.encrypt(JSON.stringify({ userData }), process.env.ACCESS_TOKEN_CRYPTO_DATA).toString()
         ]);
 
@@ -107,6 +108,100 @@ Token.generateRefreshToken = async (connection, ID, requestID) => {
         return data.affectedRows === 1 ? promisesData.refreshTokenHash : false;
     } catch (error) {
         logger.error(requestID, 'Token', 'generateRefreshToken', 'Error', { error: error.toString() });
+        throw new Error(error);
+    }
+};
+
+/**
+ * This function blacklists token
+ * @function blacklistToken()
+ * @param { Object } connection 
+ * @param { String } token 
+ * @param { Number } requestID 
+ * @returns { Boolean }
+ */
+Token.blacklistToken = async (connection, token, requestID) => {
+    try {
+        logger.info(requestID, 'Token', 'blacklistToken', 'Executing MySQL Query', {});
+        const data = await connection.query(`
+        UPDATE
+            authorization_tokens
+        SET
+            is_blacklisted = 1
+        WHERE
+            deleted_at IS NULL
+        AND
+            token = ?`, [token]);
+
+        return data.affectedRows === 1;
+    } catch (error) {
+        logger.error(requestID, 'Token', 'blacklistToken', 'Error', { error: error.toString() });
+        throw new Error(error);
+    }
+};
+
+Token.isAccessTokenValid = async (connection, token, requestID) => {
+    try {
+        logger.info(requestID, 'Token', 'isAccessTokenValid', 'Verifying access token :: Calling verifyAccessToken()', {});
+        const tokenVerification = await jwtHelpers.verifyAccessToken(token);
+
+        if (!tokenVerification) {
+            logger.info(requestID, 'Token',
+                'isAccessTokenValid', 'Token has expired :: Blacklisting token :: Calling blacklistToken()', {});
+            if (! await Token.blacklistToken(connection, token, requestID)) {
+                logger.error(requestID, 'Token', 'isAccessTokenValid', 'Failed to blacklist token', {});
+            }
+
+            return false;
+        }
+
+        logger.info(requestID, 'Token', 'isAccessTokenValid', 'Decrypting token data', {});
+        const decrypt = await crypto.AES.decrypt(tokenVerification.ID, process.env.ACCESS_TOKEN_CRYPTO_ID);
+        const userID = decrypt.toString(crypto.enc.Utf8);
+
+        if (!userID || userID.length === 0) {
+            logger.error(requestID, 'Token', 'isAccessTokenExistsAndActive', 'Failed to decode access token data', {});
+            return false;
+        }
+
+        logger.info(requestID, 'Token', 'isAccessTokenValid', 'Checking if token exists :: Executing MySQL Query', { userID });
+        const data = await connection.query(`
+        SELECT
+            users.id AS ID,
+            users.first_name AS firstName,
+            users.last_name AS lastName,
+            users.email,
+            users.phone,
+            user_roles.id AS roleID,
+            user_roles.code_name AS roleCodename,
+            user_roles.readable_name_en AS roleReadableNameEN,
+            user_roles.readable_name_ar AS roleReadableNameAR
+		FROM
+			users, user_roles, authorization_tokens
+        WHERE
+            users.deleted_at IS NULL
+        AND
+            user_roles.deleted_at IS NULL
+        AND
+            users.user_role_id = user_roles.id
+        AND
+            users.id = authorization_tokens.user_id
+        AND
+            users.is_locked = ? 
+        AND
+            users.is_suspended = ?
+        AND
+            users.id = ?
+        AND
+            authorization_tokens.token_type = ?
+        AND
+            authorization_tokens.is_blacklisted = ?
+        AND
+            authorization_tokens.token = ?`, [0, 0, userID, 'access', 0, token]);
+
+        return data.length === 0 ? false : JSON.parse(JSON.stringify(data[0]));
+    } catch (error) {
+        logger.error(requestID, 'Token', 'isAccessTokenValid', 'Error', { error: error.toString() });
         throw new Error(error);
     }
 };
