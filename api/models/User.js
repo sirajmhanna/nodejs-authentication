@@ -20,6 +20,7 @@ User.getUserByEmail = async (connection, email, requestID) => {
             users.last_name AS lastName,
             users.email,
             users.phone,
+            users.password,
             IF(users.is_locked = ?, 'false', 'true') AS isLocked,
             IF(users.is_suspended = ?, 'false', 'true') AS isSuspended,
             users.pre_lock_count AS previousLockCount,
