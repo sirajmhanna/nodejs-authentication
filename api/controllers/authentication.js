@@ -5,6 +5,39 @@ const User = require('../models/User');
 const Token = require('../models/Token');
 const bcrypt = require('bcrypt');
 
+/**
+ * Login Controller
+ * @method POST
+ * @example body
+ * {
+ *   "email": "nodejs@mailinator.com",
+ *   "password": "12345678"
+ * }
+ * @example response
+ * {
+ *   "status": "success",
+ *   "code": 201,
+ *   "message": "successLogin",
+ *   "user": {
+ *       "ID": 1,
+ *       "firstName": "Node",
+ *       "lastName": "JS",
+ *       "email": "nodejs@mailinator.com",
+ *       "phone": "00000000",
+ *       "roleID": 1,
+ *       "roleCodename": "admin",
+ *       "roleReadableNameEN": "Admin",
+ *       "roleReadableNameAR": "مشرف"
+ *   },
+ *   "accessToken": {
+ *       "access": "xxxxxxxxxxxxxxxx",
+ *       "time": "60"
+ *   }
+ * }
+ * @param { Object } req 
+ * @param { Object } res 
+ * @returns { Object }
+ */
 exports.login = async (req, res) => {
     let connection, transaction;
     try {
@@ -56,7 +89,7 @@ exports.login = async (req, res) => {
             return res.status(403).json(commonResponses.invalidLoginCredentials);
         }
 
-        if (Number(user.previousLockCount) !== 0) {
+        if (user.previousLockCount !== 0) {
             logger.info(req.body.requestID, 'authentication', 'login', 'Resetting previous lock count :: Calling resetPreviousLockCount()', {});
             if (! await User.resetPreviousLockCount(connection, user.ID, req.body.requestID)) {
                 logger.error(req.body.requestID, 'authentication', 'login',
@@ -72,6 +105,8 @@ exports.login = async (req, res) => {
         delete user.isSuspended;
         delete user.previousLockCount;
 
+        logger.info(req.body.requestID, 'authentication',
+            'login', 'Calling generateAccessToken() :: Calling generateRefreshToken() :: Calling Promise.all()', {});
         const promises = await Promise.all([
             Token.generateAccessToken(connection, user, req.body.requestID),
             Token.generateRefreshToken(connection, user.ID, req.body.requestID)
@@ -87,11 +122,11 @@ exports.login = async (req, res) => {
                 `Failed to create ${promiseData.accessToken ? 'refresh' : 'access'} token :: Rolling Back MySQL Transaction :: Calling rollback()`, {});
             await connection.rollback();
 
-            return res.status(400).json(commonResponses.somethingWentWrongResponse);
+            return res.status(400).json(commonResponses.somethingWentWrong);
         }
 
         logger.info(req.body.requestID, 'authentication', 'login',
-            'Committing MySQL Transaction :: Calling commit() :: Returning success response', {});
+            'Committing MySQL Transaction :: Calling commit() :: Returning success response', { userID: user.ID });
         await connection.commit();
 
         return res.status(201).json({
