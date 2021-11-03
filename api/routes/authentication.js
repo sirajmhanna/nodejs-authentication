@@ -5,4 +5,7 @@ const AuthenticationControllers = require('../controllers/authentication');
 // Login Route
 route.post('/login', AuthenticationControllers.login);
 
+// Logout Route
+route.post('/logout', AuthenticationControllers.logout);
+
 module.exports = route;
