@@ -74,6 +74,7 @@ exports.createAuthorizationTokensTable = async (connection, requestID) => {
         await connection.query("CREATE TABLE IF NOT EXISTS authorization_tokens (" +
             "id int UNSIGNED NOT NULL AUTO_INCREMENT," +
             "user_id int UNSIGNED NOT NULL," +
+            "token_type varchar(10) DEFAULT NULL," +
             "token text DEFAULT NULL," +
             "expires_at datetime DEFAULT NULL," +
             "is_blacklisted tinyint(1) NOT NULL DEFAULT 0," +
