@@ -2,6 +2,7 @@ const logger = require('../../helpers/winston');
 const commonResponses = require('../../helpers/common-responses');
 const MySQL = require('../../config/mysql');
 const User = require('../models/User');
+const Token = require('../models/Token');
 const bcrypt = require('bcrypt');
 
 exports.login = async (req, res) => {
@@ -26,9 +27,9 @@ exports.login = async (req, res) => {
             return res.status(403).json(commonResponses.invalidLoginCredentials);
         }
 
-        if (!user.isLocked || !user.isSuspended) {
+        if (user.isLocked === 'true' || user.isSuspended === 'true') {
             logger.warn(req.body.requestID, 'authentication',
-                'login', `${!user.isLocked ? 'account is locked' : 'account is suspended'}`, { email: req.body.email });
+                'login', `${user.isLocked ? 'account is locked' : 'account is suspended'}`, { email: req.body.email });
             return res.status(403).json(commonResponses.invalidLoginCredentials);
         }
 
@@ -71,22 +72,40 @@ exports.login = async (req, res) => {
         delete user.isSuspended;
         delete user.previousLockCount;
 
-        // to-do 
-        // generate access and refresh token
+        const promises = await Promise.all([
+            Token.generateAccessToken(connection, user, req.body.requestID),
+            Token.generateRefreshToken(connection, user.ID, req.body.requestID)
+        ]);
+
+        const promisesData = {
+            accessToken: promises[0],
+            refreshToken: promises[1]
+        };
+
+        if (!promisesData.accessToken || !promisesData.refreshToken) {
+            logger.error(req.body.requestID, 'authentication', 'login',
+                `Failed to create ${promiseData.accessToken ? 'refresh' : 'access'} token :: Rolling Back MySQL Transaction :: Calling rollback()`, {});
+            await connection.rollback();
+
+            return res.status(400).json(commonResponses.somethingWentWrongResponse);
+        }
 
         logger.info(req.body.requestID, 'authentication', 'login',
             'Committing MySQL Transaction :: Calling commit() :: Returning success response', {});
         await connection.commit();
 
-        // return res.status(201).json({
-        //     ...commonResponses.successLogin,
-        //     user,
-        //     token: {
-        //         access: ...,
-        //         time: process.env.ACCESS_TOKEN_TIME.split("s")[0]
-        //     },
-        //     refreshToken: ...
-        // });
+        return res.status(201).json({
+            ...commonResponses.successLogin,
+            user,
+            accessToken: {
+                access: promisesData.accessToken,
+                time: process.env.ACCESS_TOKEN_TIME.split("s")[0]
+            },
+            refreshToken: {
+                refresh: promisesData.refreshToken,
+                time: process.env.REFRESH_TOKEN_TIME.split("s")[0]
+            }
+        });
     } catch (error) {
         logger.error(req.body.requestID, 'authentication', 'login', 'Server Error', { error: error.toString() });
         if (transaction) {
@@ -94,7 +113,7 @@ exports.login = async (req, res) => {
             await connection.rollback();
         }
 
-        return res.status(500).json(commonResponses.genericErrorResponse);
+        return res.status(500).json(commonResponses.genericServerError);
     } finally {
         if (connection) {
             logger.info(req.body.requestID, 'authentication', 'login', 'Closing MySQL Connection :: Calling close()', {});
