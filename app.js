@@ -35,4 +35,7 @@ app.use('/api/server/', require('./api/routes/server'));
 // Authentication Routes
 app.use('/api/authentication/', require('./api/routes/authentication'));
 
+// Tokens Routes
+app.use('/api/authentication/token', require('./api/routes/tokens'));
+
 module.exports = app;
