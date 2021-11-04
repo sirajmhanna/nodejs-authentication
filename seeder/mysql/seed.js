@@ -4,7 +4,7 @@ const logger = require('../../helpers/winston');
 const databaseMigration = async (requestID) => {
     logger.info(requestID, 'seeder', 'databaseMigration', 'Creating MySQL Connection :: Calling connection()', {});
     const connection = await MySQL.connection();
-    
+
     try {
         logger.info(`${requestID} :: databaseMigration :: Disabling foreign key constraints :: Executing MySQL Query`);
         await connection.query(`SET foreign_key_checks = 0`);
@@ -49,10 +49,9 @@ const databaseMigration = async (requestID) => {
     }
 };
 
-const executeCode = () => {
+const executeCode = (requestID) => {
     console.log('Database migration process is about to start.');
     process.stdin.on("data", async (data) => {
-        const requestID = new Date().getTime();
         if (data.toString().trim().toLocaleLowerCase() === "yes")
             await databaseMigration(requestID);
         else if (data.toString().trim().toLocaleLowerCase() === "no")
@@ -63,4 +62,4 @@ const executeCode = () => {
     process.stdout.write("Do you want to proceed(yes/no)?");
 };
 
-executeCode();
+executeCode(new Date().getTime());

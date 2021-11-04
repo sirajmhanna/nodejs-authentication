@@ -4,7 +4,6 @@ const MySQL = require('../../config/mysql');
 const User = require('../models/User');
 const Token = require('../models/Token');
 const bcrypt = require('bcrypt');
-const crypto = require("crypto-js");
 
 /**
  * Login Controller
