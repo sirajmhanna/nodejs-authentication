@@ -53,5 +53,15 @@ module.exports = {
         status: 'fail',
         code: 403,
         message: 'invalidResetPin'
+    },
+    refreshTokenExpired: {
+        status: 'warn',
+        code: 401,
+        message: 'refreshTokenExpired'
+    },
+    successRefreshToken: {
+        status: 'success',
+        code: 201,
+        message: 'successRefreshToken'
     }
 };
