@@ -205,7 +205,7 @@ exports.logout = async (req, res) => {
                 Rolling Back MySQL Transaction :: Calling rollback()`, {});
             await connection.rollback();
 
-            return res.status(400).json(commonResponses.somethingWentWrongResponse);
+            return res.status(400).json(commonResponses.somethingWentWrong);
         }
 
         logger.info(req.body.requestID, 'authentication',
@@ -380,6 +380,103 @@ exports.requestResetPassword = async (req, res) => {
     } finally {
         if (connection) {
             logger.info(req.query.requestID, 'authentication', 'requestResetPassword', 'Closing MySQL Connection :: Calling close()', {});
+            await connection.close();
+        }
+    }
+};
+
+/**
+ * Confirm Reset Password Controller
+ * @method PATCH
+ * @example body
+ * {
+ *   "password": "Qwerty_1234",
+ *   "pin": "xxxxxxxxxx"
+ * }
+ * @example response
+ * {
+ *   "status": "success",
+ *   "code": 200,
+ *   "message": "passwordResetSuccessful"
+ * }
+ * @param { Object } req 
+ * @param { Object } res 
+ * @returns { Object }
+ */
+exports.confirmResetPassword = async (req, res) => {
+    try {
+        logger.info(req.body.requestID, 'authentication', 'confirmResetPassword', 'Starting execution', { ipAddress: req.ip });
+
+        logger.info(req.body.requestID, 'authentication', 'confirmResetPassword', 'Checking if the new password is valid via password-validator package', {});
+        if (! await require('../../helpers/password-validator').isPasswordValid(req.body.password)) {
+            logger.info(req.body.requestID, 'authentication', 'confirmResetPassword', 'New password is invalid', {});
+            return res.status(400).json(commonResponses.newPasswordInvalid);
+        }
+
+        logger.info(req.query.requestID, 'authentication', 'confirmResetPassword', 'Creating MySQL Connection :: Calling connection()', {});
+        connection = await MySQL.connection();
+
+        logger.info(req.body.requestID, 'authentication', 'confirmResetPassword',
+            'Checking reset password pin if valid :: Calling isResetPasswordPinValid()', { pin: req.body.pin });
+        const user = await Pin.isResetPasswordPinValid(connection, req.body.pin, req.body.requestID);
+
+        if (!user) {
+            logger.warn(req.body.requestID, 'authentication', 'confirmResetPassword',
+                'Reset password pin is not valid or does not exists', { pin: req.body.pin });
+            return res.status(403).json(commonResponses.invalidResetPinResponse);
+        }
+
+        logger.info(req.body.requestID, 'authentication', 'confirmResetPassword', 'Starting MySQL Transaction :: Calling beginTransaction()', {});
+        transaction = await connection.beginTransaction();
+
+        logger.info(req.body.requestID, 'authentication', 'confirmResetPassword',
+            'Calling changeUserPassword() :: Calling destroyResetPasswordPin() :: Calling blacklistAllTokensByUserID() :: In Promise.all()',
+            { userID: user.ID, pin: req.body.pin });
+        const promises = await Promise.all([
+            User.changeUserPassword(connection, user.ID, req.body.password, req.body.requestID),
+            Pin.destroyResetPasswordPin(connection, req.body.pin, req.body.requestID),
+            Token.blacklistAllTokensByUserID(connection, user.ID, req.body.requestID)
+        ]);
+
+        const promisesData = {
+            changeUserPassword: promises[0],
+            destroyResetPasswordPin: promises[1]
+        };
+
+        if (!promisesData.changeUserPassword || !promisesData.destroyResetPasswordPin) {
+            logger.error(req.body.requestID, 'authentication', 'confirmResetPassword',
+                `${!promisesData.changeUserPassword ? 'Failed to change user password' : 'Failed to destroy reset password pin'} 
+            :: Rolling Back MySQL Query :: Calling rollback()`, { user, pin: req.body.pin });
+            await connection.rollback();
+
+            return res.status(400).json(commonResponses.somethingWentWrong);
+        }
+
+        // To-DO
+        // Send notification email
+        // Password reset email
+        // const emailPayload = {
+        //     email: user.email,
+        //     ipAddress: req.ip,
+        //     date: new Date()
+        // };
+
+        logger.info(req.body.requestID, 'authentication', 'confirmResetPassword',
+            'Committing MySQL Transaction :: Calling commit() :: Returning success response', { userID: user.ID });
+        await connection.commit();
+
+        return res.status(200).json(commonResponses.successResetPassword);
+    } catch (error) {
+        logger.error(req.body.requestID, 'authentication', 'confirmResetPassword', 'Server Error', { error: error.toString() });
+        if (transaction) {
+            logger.error(req.body.requestID, 'authentication', 'confirmResetPassword', 'Rolling Back MySQL Transaction :: Calling rollback()', {});
+            await connection.rollback();
+        }
+
+        return res.status(500).json(commonResponses.genericServerError);
+    } finally {
+        if (connection) {
+            logger.info(req.body.requestID, 'authentication', 'confirmResetPassword', 'Closing MySQL Connection :: Calling close()', {});
             await connection.close();
         }
     }
