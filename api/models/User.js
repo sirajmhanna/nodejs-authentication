@@ -48,6 +48,50 @@ User.getUserByEmail = async (connection, email, requestID) => {
 };
 
 /**
+ * This function fetches user by ID
+ * @function getUserByID()
+ * @param { Object } connection 
+ * @param { Number } ID 
+ * @param { Number } requestID 
+ * @returns { Boolean | Object }
+ */
+ User.getUserByID = async (connection, ID, requestID) => {
+    try {
+        logger.info(requestID, 'User', 'getUserByID', 'Executing MySQL Query', { ID });
+        const data = await connection.query(`
+        SELECT
+            users.id AS ID,
+            users.first_name AS firstName,
+            users.last_name AS lastName,
+            users.email,
+            users.phone,
+            user_roles.id AS roleID,
+            user_roles.code_name AS roleCodename,
+            user_roles.readable_name_en AS roleReadableNameEN,
+            user_roles.readable_name_ar AS roleReadableNameAR
+		FROM
+			users, user_roles
+        WHERE
+            users.deleted_at IS NULL
+        AND
+            user_roles.deleted_at IS NULL
+        AND
+            users.user_role_id = user_roles.id
+        AND
+            users.is_locked = ?
+        AND
+            users.is_suspended = ?
+        AND
+            users.id = ?`, [0, 0, ID]);
+
+        return data.length === 0 ? false : JSON.parse(JSON.stringify(data[0]));
+    } catch (error) {
+        logger.error(requestID, 'User', 'getUserByID', 'Error', { error: error.toString() });
+        throw new Error(error);
+    }
+};
+
+/**
  * This function increment previous failed login attempt and locks user account if the number of failed attempts exceeded predefined number
  * @function incrementPreviousLockCountAttempts()
  * @param { Object } connection 
