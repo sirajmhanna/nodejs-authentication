@@ -43,5 +43,15 @@ module.exports = {
         status: 'success',
         code: 200,
         message: 'passwordResetSuccessfulRequest'
+    },
+    successResetPassword: {
+        status: 'success',
+        code: 200,
+        message: 'passwordResetSuccessful'
+    },
+    invalidResetPinResponse: {
+        status: 'fail',
+        code: 403,
+        message: 'invalidResetPin'
     }
 };

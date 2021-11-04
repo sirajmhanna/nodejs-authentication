@@ -206,4 +206,29 @@ Token.isAccessTokenValid = async (connection, token, requestID) => {
     }
 };
 
+/**
+ * This function blacklists all user tokens
+ * @function blacklistAllTokensByUserID()
+ * @param { Object } connection 
+ * @param { Number } userID 
+ * @param { Number } requestID 
+ */
+ Token.blacklistAllTokensByUserID = async (connection, userID, requestID) => {
+    try {
+        logger.info(requestID, 'Token', 'blacklistAllTokensByUserID', 'Executing MySQL Query', { userID });
+        await connection.query(`
+        UPDATE 
+            authorization_tokens
+        SET
+            is_blacklisted = 1
+        WHERE 
+            deleted_at IS NULL
+        AND
+            user_id = ?`, [userID]);
+    } catch (error) {
+        logger.error(requestID, 'Token', 'blacklistAllTokensByUserID', 'Error', { error: error.toString() });
+        throw new Error(error);
+    }
+};
+
 module.exports = Token;
