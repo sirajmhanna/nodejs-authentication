@@ -6,8 +6,8 @@
  * has an uppercase
  * has digits
  * contains no space
- * @param { string } password 
- * @returns { boolean }
+ * @param { String } password 
+ * @returns { Boolean }
  */
  exports.isPasswordValid = async (password) => {
     const passwordValidator = require('password-validator');
