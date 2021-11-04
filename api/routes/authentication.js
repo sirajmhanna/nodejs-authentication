@@ -11,4 +11,7 @@ route.post('/logout', AuthenticationControllers.logout);
 // Change Password Route
 route.patch('/password/change', AuthenticationControllers.changePassword);
 
+// Request Reset Password Route
+route.get('/password/reset', AuthenticationControllers.requestResetPassword);
+
 module.exports = route;

@@ -38,5 +38,10 @@ module.exports = {
         status: 'success',
         code: 200,
         message: 'passwordChangedSuccessfully'
+    },
+    successRequestResetPassword: {
+        status: 'success',
+        code: 200,
+        message: 'passwordResetSuccessfulRequest'
     }
 };
