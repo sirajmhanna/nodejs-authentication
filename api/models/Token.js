@@ -140,6 +140,14 @@ Token.blacklistToken = async (connection, token, requestID) => {
     }
 };
 
+/**
+ * This function validates access token and return user data if the token is valid
+ * @function isAccessTokenValid()
+ * @param { Object } connection 
+ * @param { String } token 
+ * @param { Number } requestID 
+ * @returns { Boolean | Object }
+ */
 Token.isAccessTokenValid = async (connection, token, requestID) => {
     try {
         logger.info(requestID, 'Token', 'isAccessTokenValid', 'Verifying access token :: Calling verifyAccessToken()', {});
@@ -147,9 +155,9 @@ Token.isAccessTokenValid = async (connection, token, requestID) => {
 
         if (!tokenVerification) {
             logger.info(requestID, 'Token',
-                'isAccessTokenValid', 'Token has expired :: Blacklisting token :: Calling blacklistToken()', {});
+                'isAccessTokenValid', 'Access token has expired :: Blacklisting token :: Calling blacklistToken()', {});
             if (! await Token.blacklistToken(connection, token, requestID)) {
-                logger.error(requestID, 'Token', 'isAccessTokenValid', 'Failed to blacklist token', {});
+                logger.error(requestID, 'Token', 'isAccessTokenValid', 'Failed to blacklist access token', {});
             }
 
             return false;
@@ -207,13 +215,67 @@ Token.isAccessTokenValid = async (connection, token, requestID) => {
 };
 
 /**
+ * This function validates refresh token and return decoded token if the token is valid
+ * @function isRefreshTokenValid()
+ * @param { Object } connection 
+ * @param { String } encodedRefreshToken 
+ * @param { Number } requestID 
+ * @returns { Boolean | String }
+ */
+Token.isRefreshTokenValid = async (connection, encodedRefreshToken, requestID) => {
+    try {
+        logger.info(requestID, 'Token', 'isRefreshTokenValid', 'Decrypting refresh token', {});
+        const bytes = await crypto.AES.decrypt(encodedRefreshToken.toString(), process.env.REFRESH_TOKEN_CRYPTO);
+        const refreshToken = await bytes.toString(crypto.enc.Utf8);
+
+        if (refreshToken.length === 0) {
+            logger.warn(requestID, 'Token', 'isRefreshTokenValid', 'Failed to decrypt refresh token', {});
+            return false;
+        }
+
+        logger.info(requestID, 'Token', 'isRefreshTokenValid', 'Verifying refresh token :: Calling verifyRefreshToken()', {});
+        const tokenVerification = await jwtHelpers.verifyRefreshToken(refreshToken);
+
+        if (!tokenVerification) {
+            logger.info(requestID, 'Token',
+                'isRefreshTokenValid', 'Refresh token has expired :: Blacklisting token :: Calling blacklistToken()', {});
+            if (! await Token.blacklistToken(connection, encodedRefreshToken, requestID)) {
+                logger.error(requestID, 'Token', 'isRefreshTokenValid', 'Failed to blacklist refresh token', {});
+            }
+
+            return false;
+        }
+
+        logger.info(requestID, 'Token', 'isRefreshTokenValid', 'Checking if refresh token exists :: Executing MySQL Query', {});
+        const data = await connection.query(`
+        SELECT 
+            COUNT(id) AS count
+        FROM 
+            authorization_tokens
+        WHERE
+            deleted_at IS NULL
+        AND
+            token_type = ?
+        AND
+            is_blacklisted = ?
+        AND
+            token = ?`, ['refresh', 0, encodedRefreshToken]);
+
+        return (data[0].count === 0) ? false : tokenVerification;
+    } catch (error) {
+        logger.error(requestID, 'Token', 'isRefreshTokenValid', 'Error', { error: error.toString() });
+        throw new Error(error);
+    }
+};
+
+/**
  * This function blacklists all user tokens
  * @function blacklistAllTokensByUserID()
  * @param { Object } connection 
  * @param { Number } userID 
  * @param { Number } requestID 
  */
- Token.blacklistAllTokensByUserID = async (connection, userID, requestID) => {
+Token.blacklistAllTokensByUserID = async (connection, userID, requestID) => {
     try {
         logger.info(requestID, 'Token', 'blacklistAllTokensByUserID', 'Executing MySQL Query', { userID });
         await connection.query(`
