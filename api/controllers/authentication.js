@@ -173,7 +173,7 @@ exports.login = async (req, res) => {
 exports.logout = async (req, res) => {
     let connection, transaction;
     try {
-        logger.info(req.body.requestID, 'authentication', 'logout', 'Starting execution', { ipAddress: req.ip });
+        logger.info(req.body.requestID, 'authentication', 'logout', 'Starting execution', { ipAddress: req.ip, userID: req.body.userData.ID });
 
         if (!req.body?.refreshToken || !req.headers?.authorization) {
             logger.warn(req.body.requestID, 'authentication',
@@ -224,6 +224,83 @@ exports.logout = async (req, res) => {
     } finally {
         if (connection) {
             logger.info(req.body.requestID, 'authentication', 'logout', 'Closing MySQL Connection :: Calling close()', {});
+            await connection.close();
+        }
+    }
+};
+
+/**
+ * Change Password Controller
+ * @method PATCH
+ * @example body
+ * {
+ *   "currentPassword": "12345678",
+ *   "newPassword": "Qwerty_1234"
+ * }
+ * @example response 
+ * {
+ *   "status": "success",
+ *   "code": 200,
+ *   "message": "passwordChangedSuccessfully"
+ * }
+ * @param { Object } req 
+ * @param { Object } res 
+ * @returns { Object }
+ */
+exports.changePassword = async (req, res) => {
+    try {
+        logger.info(req.body.requestID, 'authentication', 'changePassword', 'Starting execution', { ipAddress: req.ip, userID: req.body.userData.ID });
+
+        logger.info(req.body.requestID, 'authentication', 'changePassword', 'Validating new password', {});
+        if (! await require('../../helpers/password-validator').isPasswordValid(req.body.newPassword)) {
+            logger.warn(req.body.requestID, 'authentication', 'changePassword', 'New password is invalid', {});
+            return res.status(403).json(commonResponses.newPasswordInvalid);
+        }
+
+        logger.info(req.body.requestID, 'authentication', 'changePassword', 'Creating MySQL Connection :: Calling connection()', {});
+        connection = await MySQL.connection();
+
+        logger.info(req.body.requestID, 'authentication', 'changePassword', 'Starting MySQL Transaction :: Calling beginTransaction()', {});
+        transaction = await connection.beginTransaction();
+
+        logger.info(req.body.requestID, 'authentication', 'changePassword',
+            'Calling isCurrentPasswordMatches() :: Calling changeUserPassword() :: In Promise.all()', { userID: req.body.userData.ID });
+        const promises = await Promise.all([
+            User.isCurrentPasswordMatches(connection, req.body.userData.ID, req.body.currentPassword, req.body.requestID),
+            User.changeUserPassword(connection, req.body.userData.ID, req.body.newPassword, req.body.requestID)
+        ]);
+
+        const promisesData = {
+            isCurrentPasswordMatches: promises[0],
+            changeUserPassword: promises[1]
+        };
+
+        logger.info(req.body.requestID, 'authentication', 'changePassword', 'Checking if the current password matches', {});
+        if (!promisesData.isCurrentPasswordMatches || !promisesData.changeUserPassword) {
+            logger.error(req.body.requestID, 'authentication', 'changePassword',
+                `${!promisesData.isCurrentPasswordMatches ? 'Current password does not match' : 'Failed to change user password'} ::
+             Rolling Back MySQL Query :: Calling rollback()`, { userID: req.body.userData.ID });
+            await connection.rollback();
+
+            return res.status(400).json(commonResponses.currentPasswordInvalid);
+        }
+
+        logger.info(req.body.requestID, 'authentication', 'changePassword',
+            'Committing MySQL Transaction :: Calling commit() :: Returning success response', { accountName: req.body.accountName });
+        await connection.commit();
+
+        return res.status(200).json(commonResponses.successPasswordChange);
+    } catch (error) {
+        logger.error(req.body.requestID, 'authentication', 'changePassword', 'Server Error', { error: error.toString() });
+        if (transaction) {
+            logger.error(req.body.requestID, 'authentication', 'changePassword', 'Rolling Back MySQL Transaction :: Calling rollback()', {});
+            await connection.rollback();
+        }
+
+        return res.status(500).json(commonResponses.genericServerError);
+    } finally {
+        if (connection) {
+            logger.info(req.body.requestID, 'authentication', 'changePassword', 'Closing MySQL Connection :: Calling close()', {});
             await connection.close();
         }
     }
