@@ -103,7 +103,7 @@ Token.generateRefreshToken = async (connection, ID, requestID) => {
                 authorization_tokens (user_id, token_type, token, expires_at)
             VALUES
                 (?, ?, ?, ?)
-        `, [ID, 'refresh', refreshToken, promisesData.tokenExpireDatetime]);
+        `, [ID, 'refresh', promisesData.refreshTokenHash, promisesData.tokenExpireDatetime]);
 
         return data.affectedRows === 1 ? promisesData.refreshTokenHash : false;
     } catch (error) {

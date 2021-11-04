@@ -182,15 +182,6 @@ exports.logout = async (req, res) => {
             return res.status(400).json(commonResponses.somethingWentWrong);
         }
 
-        logger.info(req.body.requestID, 'authentication', 'logout', 'Decrypting refresh token', {});
-        const bytes = await crypto.AES.decrypt(req.body.refreshToken.toString(), process.env.REFRESH_TOKEN_CRYPTO);
-        const refreshToken = await bytes.toString(crypto.enc.Utf8);
-
-        if (refreshToken.length === 0) {
-            logger.warn(requestID, 'Token', 'logout', 'Failed to decrypt refresh token', {});
-            return res.status(400).json(commonResponses.somethingWentWrong);
-        }
-
         logger.info(req.body.requestID, 'authentication', 'logout', 'Creating MySQL Connection :: Calling connection()', {});
         connection = await MySQL.connection();
 
@@ -201,7 +192,7 @@ exports.logout = async (req, res) => {
             'Blacklisting access and refresh token :: Calling blacklistToken() :: Calling blacklistToken() :: In Promise.all()', {});
         const promises = await Promise.all([
             await Token.blacklistToken(connection, req.headers.authorization, req.body.requestID),
-            await Token.blacklistToken(connection, refreshToken, req.body.requestID)
+            await Token.blacklistToken(connection, req.body.refreshToken, req.body.requestID)
         ]);
 
         const promisesData = {
