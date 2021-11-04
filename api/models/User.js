@@ -1,4 +1,5 @@
 const logger = require('../../helpers/winston');
+const bcrypt = require('bcrypt');
 
 const User = {};
 
@@ -112,6 +113,70 @@ User.resetPreviousLockCount = async (connection, ID, requestID) => {
         return data.affectedRows === 1;
     } catch (error) {
         logger.error(requestID, 'User', 'resetPreviousLockCount', 'Error', { error: error.toString() });
+        throw new Error(error);
+    }
+};
+
+/**
+ * This function checks if the given password matches the stored password
+ * @function isCurrentPasswordMatches()
+ * @param { Number } ID 
+ * @param { String } password 
+ * @param { Number } requestID 
+ * @returns { Boolean }
+ */
+ User.isCurrentPasswordMatches = async (connection, ID, password, requestID) => {
+    try {
+        logger.info(requestID, 'User', 'isCurrentPasswordMatches', 'Executing MySQL Query', { ID });
+        const data = await connection.query(`
+        SELECT 
+            password
+        FROM
+            users
+        WHERE 
+            deleted_at IS NULL 
+        AND 
+            is_locked = 0 
+        AND 
+            id = ?`, [ID]);
+
+        return (data.length === 0) ? false : await bcrypt.compare(password, JSON.parse(JSON.stringify(data[0])).password);
+    } catch (error) {
+        logger.error(requestID, 'User', 'isCurrentPasswordMatches', 'Error', { error: error.toString() });
+        throw new Error(error);
+    }
+};
+
+/**
+ * This function changes user password 
+ * Encrypts the new password
+ * @function changeUserPassword()
+ * @param { Number } ID 
+ * @param { String } password 
+ * @param { Number } requestID 
+ * @returns { Boolean }
+ */
+ User.changeUserPassword = async (connection, ID, password, requestID) => {
+    try {
+        logger.info(`${requestID} :: changePassword :: Hashing new password`);
+        const hash = await bcrypt.hash(password, Number(process.env.PASSWORD_BCRYPT_ROUNDS));
+
+        logger.info(requestID, 'User', 'changeUserPassword', 'Executing MySQL Query', { ID });
+        const data = await connection.query(`
+        UPDATE 
+            users 
+        SET
+            password = ?
+        WHERE 
+            deleted_at IS NULL
+        AND
+            is_locked = ?
+        AND
+            id = ?`, [hash, 0, ID]);
+
+        return data.affectedRows === 1;
+    } catch (error) {
+        logger.error(requestID, 'User', 'changeUserPassword', 'Error', { error: error.toString() });
         throw new Error(error);
     }
 };
