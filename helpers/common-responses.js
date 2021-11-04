@@ -18,5 +18,10 @@ module.exports = {
         status: 'success',
         code: 201,
         message: 'successLogin'
+    },
+    successLogout: {
+        status: 'success',
+        code: 200,
+        message: 'successLogout'
     }
 };

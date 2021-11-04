@@ -156,3 +156,75 @@ exports.login = async (req, res) => {
         }
     }
 };
+
+/**
+ * Logout Controller
+ * @method POST
+ * @example response
+ * {
+ *   "status": "success",
+ *   "code": 200,
+ *   "message": "successLogout"
+ * }
+ * @param { Object } req 
+ * @param { Object } res 
+ * @returns { Object }
+ */
+exports.logout = async (req, res) => {
+    let connection, transaction;
+    try {
+        logger.info(req.body.requestID, 'authentication', 'logout', 'Starting execution', { ipAddress: req.ip });
+
+        if (!req.body?.refreshToken || !req.headers?.authorization) {
+            logger.warn(req.body.requestID, 'authentication',
+                'logout', `${!req.body?.refreshToken ? 'refresh token is not defined' : 'access token is not defined'}`, {});
+            return res.status(400).json(commonResponses.somethingWentWrong);
+        }
+
+        logger.info(req.body.requestID, 'authentication', 'logout', 'Creating MySQL Connection :: Calling connection()', {});
+        connection = await MySQL.connection();
+
+        logger.info(req.body.requestID, 'authentication', 'logout', 'Starting MySQL Transaction :: Calling beginTransaction()', {});
+        transaction = await connection.beginTransaction();
+
+        logger.info(req.body.requestID, 'authentication', 'logout',
+            'Blacklisting access and refresh token :: Calling blacklistToken() :: Calling blacklistToken() :: In Promise.all()', {});
+        const promises = await Promise.all([
+            await Token.blacklistToken(connection, req.headers.authorization, req.body.requestID),
+            await Token.blacklistToken(connection, req.body.refreshToken, req.body.requestID)
+        ]);
+
+        const promisesData = {
+            blacklistAccessToken: promises[0],
+            blacklistRefreshToken: promises[1]
+        }
+
+        if (!promisesData.blacklistAccessToken || !promisesData.blacklistRefreshToken) {
+            logger.error(req.body.requestID, 'authentication', 'logout',
+                `Failed to blacklist ${!promisesData.blacklistAccessToken ? 'access' : 'refresh'} token :: 
+                Rolling Back MySQL Transaction :: Calling rollback()`, {});
+            await connection.rollback();
+
+            return res.status(400).json(commonResponses.somethingWentWrongResponse);
+        }
+
+        logger.info(req.body.requestID, 'authentication',
+            'logout', 'Committing MySQL Transaction :: Calling commit() :: Returning success response', {});
+        await connection.commit();
+
+        return res.status(200).json(commonResponses.successLogout);
+    } catch (error) {
+        logger.error(req.body.requestID, 'authentication', 'logout', 'Server Error', { error: error.toString() });
+        if (transaction) {
+            logger.error(req.body.requestID, 'authentication', 'logout', 'Rolling Back MySQL Transaction :: Calling rollback()', {});
+            await connection.rollback();
+        }
+
+        return res.status(500).json(commonResponses.genericServerError);
+    } finally {
+        if (connection) {
+            logger.info(req.body.requestID, 'authentication', 'logout', 'Closing MySQL Connection :: Calling close()', {});
+            await connection.close();
+        }
+    }
+};

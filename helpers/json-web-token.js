@@ -1,5 +1,5 @@
 const jwt = require('jsonwebtoken');
-const logger = require('../config/winston');
+const logger = require('../helpers/winston');
 
 /**
  * This function verifies refresh token
