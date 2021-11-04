@@ -23,5 +23,20 @@ module.exports = {
         status: 'success',
         code: 200,
         message: 'successLogout'
+    },
+    newPasswordInvalid: {
+        status: 'warn',
+        code: 403,
+        message: 'newPasswordInvalid'
+    },
+    currentPasswordInvalid: {
+        status: 'warn',
+        code: 403,
+        message: 'currentPasswordMismatch'
+    },
+    successPasswordChange: {
+        status: 'success',
+        code: 200,
+        message: 'passwordChangedSuccessfully'
     }
 };
