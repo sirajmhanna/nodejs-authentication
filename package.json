@@ -18,7 +18,6 @@
   },
   "homepage": "https://github.com/sirajmhanna/nodejs-authentication#readme",
   "dependencies": {
-    "aws-sdk": "^2.1018.0",
     "bcrypt": "^5.0.1",
     "crypto-js": "^4.1.1",
     "dotenv": "^10.0.0",
