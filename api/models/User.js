@@ -27,9 +27,9 @@ User.getUserByEmail = async (connection, email, requestID) => {
             users.pre_lock_count AS previousLockCount,
             JSON_OBJECT(
                 'roleID', user_roles.id,
-                'roleCodename', user_roles.code_name,
-                'roleReadableNameEN', user_roles.readable_name_en,
-                'roleReadableNameAR', user_roles.readable_name_ar
+                'codename', user_roles.code_name,
+                'readableNameEN', user_roles.readable_name_en,
+                'readableNameAR', user_roles.readable_name_ar
             ) AS role
 		FROM
 			users, user_roles
@@ -71,9 +71,9 @@ User.getUserByID = async (connection, ID, requestID) => {
             users.phone,
             JSON_OBJECT(
                 'roleID', user_roles.id,
-                'roleCodename', user_roles.code_name,
-                'roleReadableNameEN', user_roles.readable_name_en,
-                'roleReadableNameAR', user_roles.readable_name_ar
+                'codename', user_roles.code_name,
+                'readableNameEN', user_roles.readable_name_en,
+                'readableNameAR', user_roles.readable_name_ar
             ) AS role
 		FROM
 			users, user_roles
