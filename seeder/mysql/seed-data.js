@@ -14,6 +14,7 @@ exports.seedUserRoles = async (connection, requestID) => {
             INTO 
                 user_roles (code_name, readable_name_en, readable_name_ar)
             VALUES 
+                ('superuser', 'Superuser', 'مستخدم متميز'),
                 ('admin', 'Admin', 'مشرف'),
                 ('client', 'Client', 'زبون')
             `);
