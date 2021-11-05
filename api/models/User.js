@@ -25,10 +25,12 @@ User.getUserByEmail = async (connection, email, requestID) => {
             IF(users.is_locked = ?, 'false', 'true') AS isLocked,
             IF(users.is_suspended = ?, 'false', 'true') AS isSuspended,
             users.pre_lock_count AS previousLockCount,
-            user_roles.id AS roleID,
-            user_roles.code_name AS roleCodename,
-            user_roles.readable_name_en AS roleReadableNameEN,
-            user_roles.readable_name_ar AS roleReadableNameAR
+            JSON_OBJECT(
+                'roleID', user_roles.id,
+                'roleCodename', user_roles.code_name,
+                'roleReadableNameEN', user_roles.readable_name_en,
+                'roleReadableNameAR', user_roles.readable_name_ar
+            ) AS role
 		FROM
 			users, user_roles
         WHERE
@@ -38,9 +40,11 @@ User.getUserByEmail = async (connection, email, requestID) => {
         AND
             users.user_role_id = user_roles.id
         AND
-            users.email = ?`, [0, 0, email]);
+            users.email = ?
+        LIMIT 1`, [0, 0, email]);
 
-        return data.length === 0 ? false : JSON.parse(JSON.stringify(data[0]));
+        data.map(row => { data[0].role = JSON.parse(row.role) });
+        return data.length === 0 ? false : data[0];
     } catch (error) {
         logger.error(requestID, 'User', 'getUserByEmail', 'Error', { error: error.toString() });
         throw new Error(error);
@@ -55,7 +59,7 @@ User.getUserByEmail = async (connection, email, requestID) => {
  * @param { Number } requestID 
  * @returns { Boolean | Object }
  */
- User.getUserByID = async (connection, ID, requestID) => {
+User.getUserByID = async (connection, ID, requestID) => {
     try {
         logger.info(requestID, 'User', 'getUserByID', 'Executing MySQL Query', { ID });
         const data = await connection.query(`
@@ -65,10 +69,12 @@ User.getUserByEmail = async (connection, email, requestID) => {
             users.last_name AS lastName,
             users.email,
             users.phone,
-            user_roles.id AS roleID,
-            user_roles.code_name AS roleCodename,
-            user_roles.readable_name_en AS roleReadableNameEN,
-            user_roles.readable_name_ar AS roleReadableNameAR
+            JSON_OBJECT(
+                'roleID', user_roles.id,
+                'roleCodename', user_roles.code_name,
+                'roleReadableNameEN', user_roles.readable_name_en,
+                'roleReadableNameAR', user_roles.readable_name_ar
+            ) AS role
 		FROM
 			users, user_roles
         WHERE
@@ -82,9 +88,11 @@ User.getUserByEmail = async (connection, email, requestID) => {
         AND
             users.is_suspended = ?
         AND
-            users.id = ?`, [0, 0, ID]);
+            users.id = ?
+        LIMIT 1`, [0, 0, ID]);
 
-        return data.length === 0 ? false : JSON.parse(JSON.stringify(data[0]));
+        data.map(row => { data[0].role = JSON.parse(row.role) });
+        return data.length === 0 ? false : data[0];
     } catch (error) {
         logger.error(requestID, 'User', 'getUserByID', 'Error', { error: error.toString() });
         throw new Error(error);
@@ -169,7 +177,7 @@ User.resetPreviousLockCount = async (connection, ID, requestID) => {
  * @param { Number } requestID 
  * @returns { Boolean }
  */
- User.isCurrentPasswordMatches = async (connection, ID, password, requestID) => {
+User.isCurrentPasswordMatches = async (connection, ID, password, requestID) => {
     try {
         logger.info(requestID, 'User', 'isCurrentPasswordMatches', 'Executing MySQL Query', { ID });
         const data = await connection.query(`
@@ -200,7 +208,7 @@ User.resetPreviousLockCount = async (connection, ID, requestID) => {
  * @param { Number } requestID 
  * @returns { Boolean }
  */
- User.changeUserPassword = async (connection, ID, password, requestID) => {
+User.changeUserPassword = async (connection, ID, password, requestID) => {
     try {
         logger.info(`${requestID} :: changePassword :: Hashing new password`);
         const hash = await bcrypt.hash(password, Number(process.env.PASSWORD_BCRYPT_ROUNDS));
