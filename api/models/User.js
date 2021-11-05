@@ -43,7 +43,7 @@ User.getUserByEmail = async (connection, email, requestID) => {
             users.email = ?
         LIMIT 1`, [0, 0, email]);
 
-        data.map(row => { data[0].role = JSON.parse(row.role) });
+        data.map(row => { row.role = JSON.parse(row.role) });
         return data.length === 0 ? false : data[0];
     } catch (error) {
         logger.error(requestID, 'User', 'getUserByEmail', 'Error', { error: error.toString() });
@@ -91,7 +91,7 @@ User.getUserByID = async (connection, ID, requestID) => {
             users.id = ?
         LIMIT 1`, [0, 0, ID]);
 
-        data.map(row => { data[0].role = JSON.parse(row.role) });
+        data.map(row => { row.role = JSON.parse(row.role) });
         return data.length === 0 ? false : data[0];
     } catch (error) {
         logger.error(requestID, 'User', 'getUserByID', 'Error', { error: error.toString() });

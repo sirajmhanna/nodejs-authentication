@@ -180,10 +180,12 @@ Token.isAccessTokenValid = async (connection, token, requestID) => {
             users.last_name AS lastName,
             users.email,
             users.phone,
-            user_roles.id AS roleID,
-            user_roles.code_name AS roleCodename,
-            user_roles.readable_name_en AS roleReadableNameEN,
-            user_roles.readable_name_ar AS roleReadableNameAR
+            JSON_OBJECT(
+                'roleID', user_roles.id,
+                'codename', user_roles.code_name,
+                'readableNameEN', user_roles.readable_name_en,
+                'readableNameAR', user_roles.readable_name_ar
+            ) AS role
 		FROM
 			users, user_roles, authorization_tokens
         WHERE
@@ -207,7 +209,8 @@ Token.isAccessTokenValid = async (connection, token, requestID) => {
         AND
             authorization_tokens.token = ?`, [0, 0, userID, 'access', 0, token]);
 
-        return data.length === 0 ? false : JSON.parse(JSON.stringify(data[0]));
+        data.map(row => { row.role = JSON.parse(row.role) });
+        return data.length === 0 ? false : data[0];
     } catch (error) {
         logger.error(requestID, 'Token', 'isAccessTokenValid', 'Error', { error: error.toString() });
         throw new Error(error);
