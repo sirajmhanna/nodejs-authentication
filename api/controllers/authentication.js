@@ -190,8 +190,8 @@ exports.logout = async (req, res) => {
         logger.info(req.body.requestID, 'authentication', 'logout',
             'Blacklisting access and refresh token :: Calling blacklistToken() :: Calling blacklistToken() :: In Promise.all()', {});
         const promises = await Promise.all([
-            await Token.blacklistToken(connection, req.headers.authorization, req.body.requestID),
-            await Token.blacklistToken(connection, req.body.refreshToken, req.body.requestID)
+            Token.blacklistToken(connection, req.headers.authorization, req.body.requestID),
+            Token.blacklistToken(connection, req.body.refreshToken, req.body.requestID)
         ]);
 
         const promisesData = {
