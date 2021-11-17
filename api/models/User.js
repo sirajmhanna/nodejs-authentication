@@ -1,20 +1,23 @@
-const logger = require('../../helpers/winston');
-const bcrypt = require('bcrypt');
+const logger = require("../../helpers/winston");
+const bcrypt = require("bcrypt");
 
 const User = {};
 
 /**
  * This function fetches user by email
  * @function getUserByEmail()
- * @param { Object } connection 
- * @param { String } email 
- * @param { Number } requestID 
+ * @param { Object } connection
+ * @param { String } email
+ * @param { Number } requestID
  * @returns { Boolean | Object }
  */
 User.getUserByEmail = async (connection, email, requestID) => {
-    try {
-        logger.info(requestID, 'User', 'getUserByEmail', 'Executing MySQL Query', { email });
-        const data = await connection.query(`
+  try {
+    logger.info(requestID, "User", "getUserByEmail", "Executing MySQL Query", {
+      email,
+    });
+    const data = await connection.query(
+      `
         SELECT
             users.id AS ID,
             users.first_name AS firstName,
@@ -41,28 +44,37 @@ User.getUserByEmail = async (connection, email, requestID) => {
             users.user_role_id = user_roles.id
         AND
             users.email = ?
-        LIMIT 1`, [0, 0, email]);
+        LIMIT 1`,
+      [0, 0, email]
+    );
 
-        data.map(row => { row.role = JSON.parse(row.role) });
-        return data.length === 0 ? false : data[0];
-    } catch (error) {
-        logger.error(requestID, 'User', 'getUserByEmail', 'Error', { error: error.toString() });
-        throw new Error(error);
-    }
+    data.map((row) => {
+      row.role = JSON.parse(row.role);
+    });
+    return data.length === 0 ? false : data[0];
+  } catch (error) {
+    logger.error(requestID, "User", "getUserByEmail", "Error", {
+      error: error.toString(),
+    });
+    throw new Error(error);
+  }
 };
 
 /**
  * This function fetches user by ID
  * @function getUserByID()
- * @param { Object } connection 
- * @param { Number } ID 
- * @param { Number } requestID 
+ * @param { Object } connection
+ * @param { Number } ID
+ * @param { Number } requestID
  * @returns { Boolean | Object }
  */
 User.getUserByID = async (connection, ID, requestID) => {
-    try {
-        logger.info(requestID, 'User', 'getUserByID', 'Executing MySQL Query', { ID });
-        const data = await connection.query(`
+  try {
+    logger.info(requestID, "User", "getUserByID", "Executing MySQL Query", {
+      ID,
+    });
+    const data = await connection.query(
+      `
         SELECT
             users.id AS ID,
             users.first_name AS firstName,
@@ -89,28 +101,41 @@ User.getUserByID = async (connection, ID, requestID) => {
             users.is_suspended = ?
         AND
             users.id = ?
-        LIMIT 1`, [0, 0, ID]);
+        LIMIT 1`,
+      [0, 0, ID]
+    );
 
-        data.map(row => { row.role = JSON.parse(row.role) });
-        return data.length === 0 ? false : data[0];
-    } catch (error) {
-        logger.error(requestID, 'User', 'getUserByID', 'Error', { error: error.toString() });
-        throw new Error(error);
-    }
+    data.map((row) => {
+      row.role = JSON.parse(row.role);
+    });
+    return data.length === 0 ? false : data[0];
+  } catch (error) {
+    logger.error(requestID, "User", "getUserByID", "Error", {
+      error: error.toString(),
+    });
+    throw new Error(error);
+  }
 };
 
 /**
  * This function increment previous failed login attempt and locks user account if the number of failed attempts exceeded predefined number
  * @function incrementPreviousLockCountAttempts()
- * @param { Object } connection 
- * @param { Number } ID 
- * @param { Number } requestID 
+ * @param { Object } connection
+ * @param { Number } ID
+ * @param { Number } requestID
  * @returns { Boolean }
  */
 User.incrementPreviousLockCountAttempts = async (connection, ID, requestID) => {
-    try {
-        logger.info(requestID, 'User', 'incrementPreviousLockCountAttempts', 'Executing MySQL Query', { userID: ID });
-        const data = await connection.query(`
+  try {
+    logger.info(
+      requestID,
+      "User",
+      "incrementPreviousLockCountAttempts",
+      "Executing MySQL Query",
+      { userID: ID }
+    );
+    const data = await connection.query(
+      `
         UPDATE 
             users
         SET
@@ -124,31 +149,47 @@ User.incrementPreviousLockCountAttempts = async (connection, ID, requestID) => {
             is_suspended = ?
         AND 
             id = ?`,
-            [
-                process.env.NUMBER_OF_ALLOWED_FAILED_ATTEMPTS,
-                process.env.NUMBER_OF_ALLOWED_FAILED_ATTEMPTS,
-                0, 0, ID
-            ]);
+      [
+        process.env.NUMBER_OF_ALLOWED_FAILED_ATTEMPTS,
+        process.env.NUMBER_OF_ALLOWED_FAILED_ATTEMPTS,
+        0,
+        0,
+        ID,
+      ]
+    );
 
-        return data.affectedRows === 1;
-    } catch (error) {
-        logger.error(requestID, 'User', 'incrementPreviousLockCountAttempts', 'Error', { error: error.toString() });
-        throw new Error(error);
-    }
+    return data.affectedRows === 1;
+  } catch (error) {
+    logger.error(
+      requestID,
+      "User",
+      "incrementPreviousLockCountAttempts",
+      "Error",
+      { error: error.toString() }
+    );
+    throw new Error(error);
+  }
 };
 
 /**
- * This function resets previous lock count 
+ * This function resets previous lock count
  * @function resetPreviousLockCount()
- * @param { Object } connection 
- * @param { Number } ID 
- * @param { Number } requestID 
+ * @param { Object } connection
+ * @param { Number } ID
+ * @param { Number } requestID
  * @returns { Boolean }
  */
 User.resetPreviousLockCount = async (connection, ID, requestID) => {
-    try {
-        logger.info(requestID, 'User', 'resetPreviousLockCount', 'Executing MySQL Query', { userID: ID });
-        const data = await connection.query(`
+  try {
+    logger.info(
+      requestID,
+      "User",
+      "resetPreviousLockCount",
+      "Executing MySQL Query",
+      { userID: ID }
+    );
+    const data = await connection.query(
+      `
         UPDATE
             users
         SET
@@ -160,27 +201,38 @@ User.resetPreviousLockCount = async (connection, ID, requestID) => {
         AND
             is_suspended = ?
         AND
-            id = ?`, [0, 0, 0, ID]);
+            id = ?`,
+      [0, 0, 0, ID]
+    );
 
-        return data.affectedRows === 1;
-    } catch (error) {
-        logger.error(requestID, 'User', 'resetPreviousLockCount', 'Error', { error: error.toString() });
-        throw new Error(error);
-    }
+    return data.affectedRows === 1;
+  } catch (error) {
+    logger.error(requestID, "User", "resetPreviousLockCount", "Error", {
+      error: error.toString(),
+    });
+    throw new Error(error);
+  }
 };
 
 /**
  * This function checks if the given password matches the stored password
  * @function isCurrentPasswordMatches()
- * @param { Number } ID 
- * @param { String } password 
- * @param { Number } requestID 
+ * @param { Number } ID
+ * @param { String } password
+ * @param { Number } requestID
  * @returns { Boolean }
  */
 User.isCurrentPasswordMatches = async (connection, ID, password, requestID) => {
-    try {
-        logger.info(requestID, 'User', 'isCurrentPasswordMatches', 'Executing MySQL Query', { ID });
-        const data = await connection.query(`
+  try {
+    logger.info(
+      requestID,
+      "User",
+      "isCurrentPasswordMatches",
+      "Executing MySQL Query",
+      { ID }
+    );
+    const data = await connection.query(
+      `
         SELECT 
             password
         FROM
@@ -190,31 +242,50 @@ User.isCurrentPasswordMatches = async (connection, ID, password, requestID) => {
         AND 
             is_locked = 0 
         AND 
-            id = ?`, [ID]);
+            id = ?`,
+      [ID]
+    );
 
-        return (data.length === 0) ? false : await bcrypt.compare(password, JSON.parse(JSON.stringify(data[0])).password);
-    } catch (error) {
-        logger.error(requestID, 'User', 'isCurrentPasswordMatches', 'Error', { error: error.toString() });
-        throw new Error(error);
-    }
+    return data.length === 0
+      ? false
+      : await bcrypt.compare(
+          password,
+          JSON.parse(JSON.stringify(data[0])).password
+        );
+  } catch (error) {
+    logger.error(requestID, "User", "isCurrentPasswordMatches", "Error", {
+      error: error.toString(),
+    });
+    throw new Error(error);
+  }
 };
 
 /**
- * This function changes user password 
+ * This function changes user password
  * Encrypts the new password
  * @function changeUserPassword()
- * @param { Number } ID 
- * @param { String } password 
- * @param { Number } requestID 
+ * @param { Number } ID
+ * @param { String } password
+ * @param { Number } requestID
  * @returns { Boolean }
  */
 User.changeUserPassword = async (connection, ID, password, requestID) => {
-    try {
-        logger.info(`${requestID} :: changePassword :: Hashing new password`);
-        const hash = await bcrypt.hash(password, Number(process.env.PASSWORD_BCRYPT_ROUNDS));
+  try {
+    logger.info(`${requestID} :: changePassword :: Hashing new password`);
+    const hash = await bcrypt.hash(
+      password,
+      Number(process.env.PASSWORD_BCRYPT_ROUNDS)
+    );
 
-        logger.info(requestID, 'User', 'changeUserPassword', 'Executing MySQL Query', { ID });
-        const data = await connection.query(`
+    logger.info(
+      requestID,
+      "User",
+      "changeUserPassword",
+      "Executing MySQL Query",
+      { ID }
+    );
+    const data = await connection.query(
+      `
         UPDATE 
             users 
         SET
@@ -224,13 +295,17 @@ User.changeUserPassword = async (connection, ID, password, requestID) => {
         AND
             is_locked = ?
         AND
-            id = ?`, [hash, 0, ID]);
+            id = ?`,
+      [hash, 0, ID]
+    );
 
-        return data.affectedRows === 1;
-    } catch (error) {
-        logger.error(requestID, 'User', 'changeUserPassword', 'Error', { error: error.toString() });
-        throw new Error(error);
-    }
+    return data.affectedRows === 1;
+  } catch (error) {
+    logger.error(requestID, "User", "changeUserPassword", "Error", {
+      error: error.toString(),
+    });
+    throw new Error(error);
+  }
 };
 
 module.exports = User;
