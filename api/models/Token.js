@@ -21,24 +21,13 @@ Token.generateAccessToken = async (connection, userData, requestID) => {
       requestID,
       "Token",
       "generateAccessToken",
-      "Hashing user data :: Calling Promise.all()",
+      "Hashing user ID",
       { userData }
     );
-    const promiseCrypto = await Promise.all([
-      crypto.AES.encrypt(
-        userData.ID.toString(),
-        process.env.ACCESS_TOKEN_CRYPTO_ID
-      ).toString(),
-      crypto.AES.encrypt(
-        JSON.stringify({ userData }),
-        process.env.ACCESS_TOKEN_CRYPTO_DATA
-      ).toString(),
-    ]);
-
-    promiseCryptoData = {
-      ID: promiseCrypto[0],
-      data: promiseCrypto[1],
-    };
+    const userIDHash = await crypto.AES.encrypt(
+      userData.ID.toString(),
+      process.env.ACCESS_TOKEN_CRYPTO_ID
+    ).toString();
 
     logger.info(
       requestID,
@@ -49,8 +38,7 @@ Token.generateAccessToken = async (connection, userData, requestID) => {
     );
     const accessToken = await jwt.sign(
       {
-        ID: promiseCryptoData.ID,
-        data: promiseCryptoData.data,
+        ID: userIDHash,
       },
       process.env.ACCESS_TOKEN_KEY,
       {
